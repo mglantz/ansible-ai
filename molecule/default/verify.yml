@@ -1,0 +1,53 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  become: true
+
+  tasks:
+    - name: "VERIFY | nginx package is installed"
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: "VERIFY | Assert nginx package is present"
+      ansible.builtin.assert:
+        that: "'nginx' in ansible_facts.packages"
+        fail_msg: "nginx package is NOT installed"
+        success_msg: "nginx package is installed ✓"
+
+    - name: "VERIFY | Gather nginx service facts"
+      ansible.builtin.service_facts:
+
+    - name: "VERIFY | Assert nginx service is running"
+      ansible.builtin.assert:
+        that: "ansible_facts.services['nginx.service'].state == 'running'"
+        fail_msg: "nginx service is NOT running"
+        success_msg: "nginx service is running ✓"
+
+    - name: "VERIFY | Assert nginx service is enabled"
+      ansible.builtin.assert:
+        that: "ansible_facts.services['nginx.service'].status == 'enabled'"
+        fail_msg: "nginx service is NOT enabled"
+        success_msg: "nginx service is enabled ✓"
+
+    - name: "VERIFY | Check /var/www/html/index.html exists"
+      ansible.builtin.stat:
+        path: /var/www/html/index.html
+      register: index_stat
+
+    - name: "VERIFY | Assert index.html exists"
+      ansible.builtin.assert:
+        that: index_stat.stat.exists
+        fail_msg: "/var/www/html/index.html does NOT exist"
+        success_msg: "/var/www/html/index.html exists ✓"
+
+    - name: "VERIFY | Read index.html content"
+      ansible.builtin.slurp:
+        src: /var/www/html/index.html
+      register: index_content
+
+    - name: "VERIFY | Assert index.html contains expected content"
+      ansible.builtin.assert:
+        that: "'Automated by Ansible' in (index_content.content | b64decode)"
+        fail_msg: "index.html does not contain 'Automated by Ansible'"
+        success_msg: "index.html content is correct ✓"

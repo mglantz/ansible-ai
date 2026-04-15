@@ -1,0 +1,7 @@
+ansible>=9.0.0
+ansible-lint>=6.0.0
+molecule>=6.0.0
+molecule-plugins[docker]>=23.0.0
+docker>=7.0.0
+anthropic>=0.25.0
+openai>=1.30.0

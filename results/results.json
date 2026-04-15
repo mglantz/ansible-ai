@@ -1,0 +1,20 @@
+{
+  "last_updated": "2024-01-01T00:00:00Z",
+  "task_description": "Install and configure nginx as a web server: ensure the package is installed, the service is started and enabled on boot, and create a custom index.html at /var/www/html/index.html with the content 'Automated by Ansible'.",
+  "agents": [
+    {
+      "id": "claude-sonnet",
+      "name": "Claude Sonnet",
+      "provider": "Anthropic",
+      "color": "#D97706",
+      "runs": []
+    },
+    {
+      "id": "gpt-4o",
+      "name": "GPT-4o",
+      "provider": "OpenAI",
+      "color": "#10B981",
+      "runs": []
+    }
+  ]
+}

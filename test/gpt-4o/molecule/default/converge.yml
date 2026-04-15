@@ -1,0 +1,9 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: false
+
+- name: Test apache
+  ansible.builtin.import_playbook: ../../playbook.yml
+  vars:
+    target_host: "all"

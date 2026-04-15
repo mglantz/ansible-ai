@@ -1,0 +1,118 @@
+name: AI Agent Ansible Benchmark
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+    
+  workflow_dispatch:
+    inputs:
+      agents:
+        description: "Comma-separated agents to test (claude-sonnet,gpt-4o)"
+        required: false
+        default: "claude-sonnet,gpt-4o"
+
+permissions:
+  contents: write
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Run each agent as a parallel matrix job
+  # ──────────────────────────────────────────────
+  test-agent:
+    name: "Test ${{ matrix.agent }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false          # keep running other agents even if one fails
+      matrix:
+        agent:
+          - claude-sonnet
+          - gpt-4o
+
+    steps:
+      # ── Checkout ──────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Runs a single command using the runners shell
+      - name: Install prereqs
+        run: pip install ansible ansible-lint yamllint molecule molecule-podman podman
+
+      # Go to agent molecule directory
+      - name: Go to agent molecule directory
+        run: cd molecule/${{ matrix.agent }}
+
+      # ── Molecule test ─────────────────────────
+      - name: Run Molecule test
+        id: molecule
+        run: |
+          cd test/${{ matrix.agent }}
+          python scripts/run_molecule.py \
+            --agent "${{ matrix.agent }}" \
+            --output molecule_result.json
+        continue-on-error: true
+ 
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ matrix.agent }}-results"
+          path: |
+            molecule_result.json
+            agents/${{ matrix.agent }}/tasks.yml
+          retention-days: 30
+ 
+      - name: Update results JSON
+        if: always()
+        run: |
+          python scripts/update_results.py \
+            --agent "${{ matrix.agent }}" \
+            --molecule-result molecule_result.json \
+            --run-id "${{ github.run_id }}" \
+            --commit "${{ github.sha }}"
+ 
+      - name: Commit results
+        if: always()
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "ci: results for ${{ matrix.agent }} [run ${{ github.run_id }}]"
+          file_pattern: results/results.json
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
+
+  # ──────────────────────────────────────────────
+  # After all agents finish, trigger Pages deploy
+  # ──────────────────────────────────────────────
+  deploy-pages:
+    name: Deploy GitHub Pages
+    needs: test-agent
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+      contents: read
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main       # get the latest commit (with updated results.json)
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "."       # serve the whole repo root (index.html + results/)
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+

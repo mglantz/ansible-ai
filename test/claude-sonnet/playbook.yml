@@ -1,1 +1,54 @@
-PLACEHOLDER
+---
+- name: Install and configure Apache web server
+  hosts: all
+  become: true
+
+  vars:
+    apache_package: httpd
+    apache_service: httpd
+    web_root: /var/www/html
+
+  tasks:
+    - name: Ensure target is RHEL 10
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "RedHat"
+          - ansible_distribution_major_version == "10"
+        fail_msg: "This playbook targets RHEL 10 only."
+        success_msg: "RHEL 10 confirmed, proceeding."
+
+    - name: Install httpd
+      ansible.builtin.dnf:
+        name: "{{ apache_package }}"
+        state: present
+
+    - name: Deploy index.html
+      ansible.builtin.copy:
+        dest: "{{ web_root }}/index.html"
+        content: |
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <title>Hello</title>
+          </head>
+          <body>
+            <p>Hej, hallo, hello, hi.</p>
+          </body>
+          </html>
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Enable and start httpd
+      ansible.builtin.service:
+        name: "{{ apache_service }}"
+        state: started
+        enabled: true
+
+    - name: Allow HTTP through firewall
+      ansible.posix.firewalld:
+        service: http
+        permanent: true
+        state: enabled
+        immediate: true

@@ -1,1 +1,32 @@
-PLACEHOLDER
+---
+- name: Install and configure Apache on RHEL 10
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Install Apache package
+      ansible.builtin.dnf:
+        name: httpd
+        state: present
+
+    - name: Ensure Apache service is enabled and running
+      ansible.builtin.service:
+        name: httpd
+        state: started
+        enabled: yes
+
+    - name: Create index.html page
+      ansible.builtin.copy:
+        dest: /var/www/html/index.html
+        content: |
+          Hej, hallo, hello, hi.
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Allow HTTP through firewall
+      ansible.posix.firewalld:
+        service: http
+        permanent: yes
+        state: enabled
+        immediate: yes
